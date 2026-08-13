@@ -1,0 +1,68 @@
+# shadcn/ui-inspired theme — minimal, neutral, professional.
+# Light and dark are both defined so the mode switcher shows up in the app's
+# settings menu (Streamlit only offers the toggle when both are present).
+# See: https://docs.streamlit.io/develop/api-reference/configuration/config.toml
+
+[theme]
+showWidgetBorder = true
+showSidebarBorder = true
+baseRadius = "8px"
+buttonRadius = "8px"
+font = "'Inter':https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap"
+codeFontSize = "0.875rem"
+baseFontSize = 14
+baseFontWeight = 400
+headingFontSizes = ["32px", "26px", "22px", "18px", "16px", "14px"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+linkUnderline = true
+
+greenColor = "#22C55E"
+redColor = "#EF4444"
+yellowColor = "#EAB308"
+orangeColor = "#F97316"
+violetColor = "#8B5CF6"
+
+[theme.light]
+primaryColor = "#18181B"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#FAFAFA"
+codeBackgroundColor = "#F4F4F5"
+textColor = "#09090B"
+codeTextColor = "#18181B"
+linkColor = "#18181B"
+borderColor = "#E4E4E7"
+grayColor = "#71717A"
+blueColor = "#3B82F6"
+dataframeBorderColor = "#E4E4E7"
+dataframeHeaderBackgroundColor = "#FAFAFA"
+
+[theme.dark]
+primaryColor = "#3B82F6"
+backgroundColor = "#09090B"
+secondaryBackgroundColor = "#18181B"
+codeBackgroundColor = "#18181B"
+textColor = "#FAFAFA"
+codeTextColor = "#E4E4E7"
+linkColor = "#60A5FA"
+borderColor = "#27272A"
+grayColor = "#A1A1AA"
+blueColor = "#60A5FA"
+dataframeBorderColor = "#27272A"
+dataframeHeaderBackgroundColor = "#18181B"
+
+[theme.light.sidebar]
+backgroundColor = "#FAFAFA"
+secondaryBackgroundColor = "#F4F4F5"
+codeBackgroundColor = "#E4E4E7"
+textColor = "#09090B"
+borderColor = "#E4E4E7"
+primaryColor = "#18181B"
+
+[theme.dark.sidebar]
+backgroundColor = "#0D0D0F"
+secondaryBackgroundColor = "#18181B"
+codeBackgroundColor = "#27272A"
+textColor = "#FAFAFA"
+borderColor = "#27272A"
+primaryColor = "#3B82F6"

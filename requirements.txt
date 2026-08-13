@@ -1,0 +1,13 @@
+# Runtime
+langgraph>=0.2
+anthropic>=0.40
+pydantic>=2.7
+streamlit>=1.36
+pypdf>=4.0
+playwright>=1.45
+
+# Env / config
+python-dotenv>=1.0
+
+# Dev / test
+pytest>=8.0

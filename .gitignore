@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+outputs/
+.DS_Store
+
+# Regenerable / machine-specific dirs (keep off the full C drive, already on D)
+.uv-cache/
+.playwright-browsers/
+.runtime/
+
+# macOS
+.DS_Store
