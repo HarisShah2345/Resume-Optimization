@@ -651,6 +651,59 @@ def test_text_json_thinking_exhaustion_retries_with_bumped_budget(monkeypatch):
     )
 
 
+# --- simple_text (free-text, schema-less) -------------------------------------
+def test_simple_text_returns_concatenated_text(monkeypatch):
+    """`simple_text` has no schema — it just streams text deltas and concatenates
+    them. Used for small inline explanations."""
+    monkeypatch.setattr(config, "API_BASE_URL", None)
+    fake = FakeMessages(
+        [
+            FakeStream(
+                _final([_text_block("hello world")]),
+                [_text_delta("hel"), _text_delta("lo"), _text_delta(" world")],
+            )
+        ]
+    )
+    with _fake_client(fake):
+        result = llm.simple_text("claude-haiku-4-5", "sys", "user", 16000)
+
+    assert result == "hello world"
+    req = fake.requests[0]
+    assert req["model"] == "claude-haiku-4-5"
+    assert req["max_tokens"] == 16000
+    assert req["system"][0]["cache_control"] == {"type": "ephemeral"}
+    assert "tools" not in req  # no schema, no tools
+    assert "output_format" not in req
+
+
+def test_simple_text_on_token_receives_deltas(monkeypatch):
+    monkeypatch.setattr(config, "API_BASE_URL", None)
+    seen: list[str] = []
+    fake = FakeMessages(
+        [
+            FakeStream(
+                _final([_text_block("ab")]),
+                [_text_delta("a"), _text_delta("b")],
+            )
+        ]
+    )
+    with _fake_client(fake):
+        llm.simple_text("claude-haiku-4-5", "sys", "user", 16000, on_token=seen.append)
+    assert seen == ["a", "b"]
+
+
+# --- _client() gateway base_url ------------------------------------------------
+def test_client_uses_gateway_base_url(monkeypatch):
+    """On the gateway path, `_client()` must forward `base_url` so requests hit
+    the router, not api.anthropic.com."""
+    monkeypatch.setattr(config, "API_BASE_URL", "http://gateway.test")
+    with patch("tools.llm.anthropic.Anthropic") as MockAnthropic:
+        llm._client()
+    MockAnthropic.assert_called_once()
+    _, kwargs = MockAnthropic.call_args
+    assert kwargs["base_url"] == "http://gateway.test"
+
+
 def test_text_json_thinking_exhaustion_retries_only_once(monkeypatch):
     """The retry is bounded: a second thinking-exhaustion fails loudly instead
     of recursing forever at the bumped ceiling."""

@@ -1,0 +1,33 @@
+# Project metadata only (uv runs via `requirements.txt` + sys.path in app/).
+# This file holds pytest + coverage config so `uv run pytest` is consistent.
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.coverage.run]
+source = ["tools", "rendering", "config", "graph", "app"]
+branch = true
+
+[tool.coverage.report]
+# The deterministic guardrails (config thresholds, guardrails.py, rendering,
+# alignment gap, parse stages) carry the high 90% bar — they're pure code with
+# no external dependency and are the source of truth for every production fix.
+# `tools/llm.py` is the transport layer wrapping the Anthropic SDK; its retry,
+# backoff, and defensive-recovery paths (OSError-on-log, schema-rejection memo
+# persistence, thinking-only exhaustion) are exercised against a fake SDK and
+# hold a lower bar accordingly.
+fail_under = 90
+precision = 1
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

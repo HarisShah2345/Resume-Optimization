@@ -42,6 +42,35 @@ The deterministic guardrails (client-detection, keyword cap, alignment gap,
 renderer) have full tests that require **no API keys** — they run on canned
 fixtures. The LLM-touching tools are thin wrappers over the deterministic core.
 
+### Live (paid) test scripts
+
+The `tests/probe_*.py` and `tests/e2e_live.py` scripts call the Anthropic API
+directly and cost real tokens, so they are **not** part of the pytest run. Run
+them explicitly from the project root when you need to validate end-to-end
+behavior with a real model:
+
+```bash
+python tests/probe_schema.py
+python tests/probe_fallback.py
+python tests/probe_full_json.py
+python tests/probe_direct_textjson.py
+python tests/e2e_live.py
+```
+
+`e2e_live.py` is the authoritative correctness proof — it runs the full agent and
+asserts every production guardrail on the final output (fabricated clients never
+survive, legitimate clients **do** survive, JD skills present, keyword cap,
+intentionally-added content survives validation, depth floors, ATS-clean
+HTML/PDF, Letter page size).
+
+## Git workflow
+
+Branches are created from `main`. After merging, commit messages should end with:
+
+```
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
 ## Layout
 
 ```

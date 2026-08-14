@@ -10,6 +10,9 @@ outputs/
 .uv-cache/
 .playwright-browsers/
 .runtime/
+.coverage
+htmlcov/
+uv.lock
 
 # macOS
 .DS_Store
