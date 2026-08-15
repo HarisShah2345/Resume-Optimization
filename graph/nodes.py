@@ -212,16 +212,33 @@ def render_node(state: ResumeAgentState, writer: StreamWriter) -> NodeOutput:
 
     label = "Render PDF"
     _emit(writer, {"type": "step", "label": label, "status": "running"})
-    pdf_bytes = render_pdf(html_doc)
-    _emit(writer, {"type": "step", "label": label, "status": "done", "detail": f"{len(pdf_bytes):,} bytes"})
+    pdf_error: str | None = None
+    step_log: list = []
+    try:
+        pdf_bytes = render_pdf(html_doc)
+        _emit(writer, {"type": "step", "label": label, "status": "done", "detail": f"{len(pdf_bytes):,} bytes"})
+        step_log = [
+            _step("Render HTML", "done", f"{len(html_doc):,} chars"),
+            _step("Render PDF", "done", f"{len(pdf_bytes):,} bytes"),
+        ]
+    except RuntimeError as exc:
+        # No Chromium-based browser is installed (e.g. Streamlit Community Cloud,
+        # which doesn't install Playwright browsers). The tailored resume is still
+        # complete as HTML — surface the PDF gap to the UI rather than failing the
+        # whole run.
+        _emit(writer, {"type": "step", "label": label, "status": "failed", "detail": str(exc)})
+        pdf_bytes = None
+        pdf_error = str(exc)
+        step_log = [
+            _step("Render HTML", "done", f"{len(html_doc):,} chars"),
+            _step("Render PDF", "failed", pdf_error),
+        ]
 
     return {
         "html": html_doc,
         "pdf_bytes": pdf_bytes,
-        "step_log": [
-            _step("Render HTML", "done", f"{len(html_doc):,} chars"),
-            _step("Render PDF", "done", f"{len(pdf_bytes):,} bytes"),
-        ],
+        "pdf_render_error": pdf_error,
+        "step_log": step_log,
     }
 
 

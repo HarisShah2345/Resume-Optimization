@@ -54,5 +54,6 @@ class ResumeAgentState(TypedDict, total=False):
     # --- outputs --------------------------------------------------------
     html: str | None
     pdf_bytes: bytes | None
+    pdf_render_error: str | None
     final_file_name: str | None
     final_summary: dict | None

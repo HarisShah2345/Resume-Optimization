@@ -156,6 +156,7 @@ def test_happy_path_runs_end_to_end():
     assert "<!DOCTYPE html>" in state["html"]
     assert '<meta charset="utf-8">' in state["html"]
     assert state["pdf_bytes"] == b"%PDF-fake"
+    assert state["pdf_render_error"] is None  # happy path: no PDF error
 
     # Finalize.
     assert state["final_file_name"] == "Data_Engineer"
@@ -204,6 +205,7 @@ def test_repair_loop_is_bounded_and_still_renders():
     assert state["validation_attempts"] == config.MAX_REPAIR_ITERATIONS + 1
     assert state["postcheck_report"].passed is False  # never fixed — but bounded
     assert state["pdf_bytes"] == b"%PDF-fake"          # rendered anyway
+    assert state["pdf_render_error"] is None           # happy path: no PDF error
 
 
 def test_repair_instructions_feed_the_next_pass():
@@ -296,3 +298,21 @@ def test_build_input_requires_text():
         build_input("", "JD text here")
     with pytest.raises(ValueError):
         build_input("resume text", "   ")
+
+
+def test_pdf_render_failure_is_graceful():
+    """When no Chromium browser is available (e.g. Streamlit Community Cloud),
+    `render_pdf` raises RuntimeError. The agent must NOT fail the whole run — it
+    returns the HTML + a `pdf_render_error` so the UI can show a clear warning
+    while still delivering the tailored resume content."""
+    with _patched() as mocks:
+        mocks["render_pdf"].side_effect = RuntimeError("No Chromium-based browser available")
+        state = build_agent().invoke(build_input(ORIGINAL, "JD text here"))
+
+    # HTML output is unaffected; PDF is None with a descriptive error.
+    assert "<!DOCTYPE html>" in state["html"]
+    assert state["pdf_bytes"] is None
+    assert "No Chromium-based browser available" in state["pdf_render_error"]
+    # The failure is recorded in the transcript, not swallowed silently.
+    pdf_step = next(e for e in state["step_log"] if e["label"] == "Render PDF")
+    assert pdf_step["status"] == "failed"

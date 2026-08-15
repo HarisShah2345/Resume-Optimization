@@ -172,6 +172,7 @@ def render_results(state: dict) -> None:
         st.caption("None — the source already covered every required skill.")
 
     pdf_bytes = state.get("pdf_bytes")
+    pdf_error = state.get("pdf_render_error")
     if pdf_bytes:
         st.download_button(
             "Download tailored PDF",
@@ -180,6 +181,14 @@ def render_results(state: dict) -> None:
             mime="application/pdf",
             type="primary",
             icon=":material/download:",
+        )
+    elif pdf_error:
+        st.warning(
+            pdf_error
+            + "\n\nTo enable PDF downloads, install a Chromium-based browser "
+            "in this environment, or run the app locally where Playwright "
+            "bundles one.",
+            icon=":material/warning:",
         )
     with st.expander("Preview rendered HTML", icon=":material/visibility:"):
         st.iframe(state.get("html") or "", height=700)
