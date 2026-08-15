@@ -9,6 +9,12 @@ playwright>=1.45
 # Env / config
 python-dotenv>=1.0
 
+# Optional PDF backend — pure-Python (pydyf). Used as a fallback when no
+# Chromium browser is available (e.g. Streamlit Community Cloud). Newer
+# weasyprint releases need no system libraries; older cairocffi-based ones
+# need libpango/libcairo2 (see .streamlit/packages.txt).
+weasyprint>=62.0
+
 # Dev / test
 pytest>=8.0
 pytest-cov>=4.0

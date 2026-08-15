@@ -1,0 +1,5 @@
+# System libraries for weasyprint's cairocffi backend (Streamlit Community Cloud).
+# Newer weasyprint releases use pydyf and need none of this; listed as
+# belt-and-suspenders for older versions that still fall back to cairocffi.
+libpango-1.0-0
+libcairo2

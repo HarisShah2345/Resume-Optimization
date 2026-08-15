@@ -222,10 +222,10 @@ def render_node(state: ResumeAgentState, writer: StreamWriter) -> NodeOutput:
             _step("Render PDF", "done", f"{len(pdf_bytes):,} bytes"),
         ]
     except RuntimeError as exc:
-        # No Chromium-based browser is installed (e.g. Streamlit Community Cloud,
-        # which doesn't install Playwright browsers). The tailored resume is still
-        # complete as HTML — surface the PDF gap to the UI rather than failing the
-        # whole run.
+        # No PDF backend is available — neither Playwright's Chromium (e.g.
+        # Streamlit Community Cloud, which doesn't install Playwright browsers)
+        # nor weasyprint. The tailored resume is still complete as HTML —
+        # surface the PDF gap to the UI rather than failing the whole run.
         _emit(writer, {"type": "step", "label": label, "status": "failed", "detail": str(exc)})
         pdf_bytes = None
         pdf_error = str(exc)

@@ -70,6 +70,8 @@ def _reset_module_state():
     """Restore module-level cache between tests so they're independent."""
     pdf_renderer._CHANNEL_CACHE = None
     pdf_renderer._BUNDLED_ATTEMPTED = False
+    pdf_renderer._WEASY_IMPORT_TRIED = False
+    pdf_renderer._WEASYPRINT_CACHE = None
 
 
 def _install_fake_playwright(fake_chromium, monkeypatch):
@@ -149,6 +151,113 @@ def test_render_pdf_no_browser_raises(monkeypatch):
     _install_fake_playwright(fake, monkeypatch)
     with pytest.raises(RuntimeError, match="No Chromium-based browser available"):
         pdf_renderer.render_pdf("<html></html>")
+
+
+# ---------------------------------------------------------------------------
+# weasyprint backend (import-time optional, mocked at the import boundary)
+# ---------------------------------------------------------------------------
+class _FakeWeasyHTML:
+    """Mimics weasyprint.HTML(string=...): write_pdf() returns canned bytes."""
+
+    def __init__(self, string):
+        self.string = string
+        _FakeWeasyHTML.last_string = string
+
+    def write_pdf(self):
+        return _FakeWeasyHTML.pdf_bytes
+
+    pdf_bytes: bytes = b"%PDF-1.7 weasyprint-fake"
+
+
+class _FakeWeasyModule:
+    """Stand-in for the `weasyprint` module returned by _import_weasyprint."""
+
+    HTML = _FakeWeasyHTML
+
+
+def _stub_weasyprint(monkeypatch, available=True, html_cls=None, write_pdf=None):
+    """Patch `_import_weasyprint` to return a fake (or to fail)."""
+    if available:
+        if html_cls is None:
+            html_cls = _FakeWeasyHTML
+            if write_pdf is not None:
+                _FakeWeasyHTML.pdf_bytes = write_pdf  # type: ignore[attr-defined]
+        fake_mod = types.SimpleNamespace(HTML=html_cls)
+        monkeypatch.setattr(pdf_renderer, "_import_weasyprint", lambda: fake_mod)
+    else:
+        monkeypatch.setattr(
+            pdf_renderer,
+            "_import_weasyprint",
+            lambda: (_ for _ in ()).throw(ImportError("no weasyprint")),
+        )
+
+
+def test_render_pdf_weasyprint_missing_returns_runtime_error():
+    """If weasyprint isn't importable, the backend reports failure via a
+    returned RuntimeError (never raised) so callers can chain fallbacks.
+
+    weasyprint genuinely isn't installed in this env, so _import_weasyprint
+    returns None after a real (one-shot) import attempt.
+    """
+    err = pdf_renderer.render_pdf_weasyprint("<html></html>")
+    assert isinstance(err, RuntimeError)
+    assert "weasyprint is not available" in str(err)
+
+
+def test_render_pdf_weasyprint_success_returns_bytes(monkeypatch):
+    _stub_weasyprint(monkeypatch, html_cls=_FakeWeasyHTML)
+    out = pdf_renderer.render_pdf_weasyprint("<html><head></head><body>hi</body></html>")
+    assert isinstance(out, bytes)
+    assert out == b"%PDF-1.7 weasyprint-fake"
+    # The @page margin rule was injected into the document.
+    assert "@page" in _FakeWeasyHTML.last_string  # type: ignore[attr-defined]
+
+
+def test_render_pdf_weasyprint_write_failure_returns_runtime_error(monkeypatch):
+    """A weasyprint write_pdf() exception is wrapped, not raised."""
+
+    class _BoomHTML:
+        def __init__(self, string):
+            pass
+
+        def write_pdf(self):
+            raise ValueError("cairo not found")
+
+    _stub_weasyprint(monkeypatch, html_cls=_BoomHTML)
+    err = pdf_renderer.render_pdf_weasyprint("<html></html>")
+    assert isinstance(err, RuntimeError)
+    assert "cairo not found" in str(err) or "weasyprint backend failed" in str(err)
+
+
+def test_render_pdf_playwright_failure_falls_to_weasyprint(monkeypatch):
+    """Playwright unavailable but weasyprint works → we get weasyprint bytes,
+    no exception escapes (proves the backend chain)."""
+    fake_pw_chromium = _FakeChromium(fail_channels={_BUNDLED, "msedge", "chrome"})
+    _install_fake_playwright(fake_pw_chromium, monkeypatch)
+    _stub_weasyprint(monkeypatch, html_cls=_FakeWeasyHTML)
+    out = pdf_renderer.render_pdf("<html></html>")
+    assert out == b"%PDF-1.7 weasyprint-fake"
+
+
+def test_render_pdf_all_backends_fail_raises(monkeypatch):
+    """Playwright fails AND weasyprint fails → RuntimeError raised (the
+    contract render_node relies on for its HTML-only graceful path)."""
+    fake_pw_chromium = _FakeChromium(fail_channels={_BUNDLED, "msedge", "chrome"})
+    _install_fake_playwright(fake_pw_chromium, monkeypatch)
+
+    class _BoomHTML2:
+        def __init__(self, string):
+            pass
+
+        def write_pdf(self):
+            raise OSError("no system libs")
+
+    _stub_weasyprint(monkeypatch, html_cls=_BoomHTML2)
+    with pytest.raises(RuntimeError) as exc_info:
+        pdf_renderer.render_pdf("<html></html>")
+    # The re-raised error is the original Playwright RuntimeError — its
+    # message names the missing browser, which is the user-facing cue.
+    assert "No Chromium-based browser available" in str(exc_info.value)
 
 
 @pytest.fixture
