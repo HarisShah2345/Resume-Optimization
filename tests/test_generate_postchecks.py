@@ -12,13 +12,17 @@ from schemas import (
     ContentEmployer,
     Education,
     EmployerProbe,
+    GapAnalysis,
     JobData,
     ResumeContent,
     ResumeStructure,
     SkillCategory,
 )
+import config
 from tools.generate_content import (
+    build_generation_user,
     effective_bullet_count,
+    generate_aligned_content,
     run_post_generation_checks,
     seniority_bullet_floors,
 )
@@ -210,3 +214,113 @@ def test_effective_bullet_count_uses_clients_when_has_clients():
     )
     assert effective_bullet_count(emp) == 5
     assert effective_bullet_count(_content().employers[0]) == 6
+
+
+# ---------------------------------------------------------------------------
+# build_generation_user — prompt construction (lines 113-161)
+# ---------------------------------------------------------------------------
+from schemas import ResumeStructure  # noqa: E402
+
+_PROBE_STRUCTURE = ResumeStructure(
+    sections_present=["SUMMARY", "EXPERIENCE", "SKILLS", "CERTIFICATIONS", "EDUCATION"],
+    employers=[],
+    employer_count=1,
+    estimated_seniority="senior",
+    total_bullets=6,
+)
+
+_PROBE_GAP = GapAnalysis(
+    severity="light_tweak",
+    reasoning="Test",
+    missing_skills=["Kubernetes"],
+    missing_phrases=["cloud-native"],
+    missing_responsibilities=["orchestrate"],
+    missing_outcomes=["reduce costs"],
+    depth_target="senior",
+)
+
+
+def test_build_generation_user_basic():
+    """Default user prompt includes all sections."""
+    user = build_generation_user(_PROBE_STRUCTURE, JD, _PROBE_GAP, original_resume_text="Jane Doe Python SQL")
+    assert "resume_structure" in user
+    assert "jd_data" in user
+    assert "gap_analysis" in user
+    assert "candidate_resume_text" in user
+    # desired_job_title falls back to JD's role_title.
+    assert "Senior Data Engineer" in user
+
+
+def test_build_generation_user_with_target_title():
+    user = build_generation_user(
+        _PROBE_STRUCTURE, JD, _PROBE_GAP,
+        original_resume_text="Jane Doe", target_title="Staff Engineer",
+    )
+    assert "Staff Engineer" in user
+
+
+def test_build_generation_user_with_emphasis():
+    user = build_generation_user(
+        _PROBE_STRUCTURE, JD, _PROBE_GAP,
+        original_resume_text="Jane Doe",
+        user_emphasis="leadership experience",
+    )
+    assert "candidate_emphasis_request" in user
+    assert "leadership experience" in user
+    assert "EMPHASIZE" in user
+
+
+def test_build_generation_user_with_repair_instructions():
+    user = build_generation_user(
+        _PROBE_STRUCTURE, JD, _PROBE_GAP,
+        original_resume_text="Jane Doe",
+        repair_instructions=["Reduce Python mentions"],
+    )
+    assert "repair_instructions" in user
+    assert "Reduce Python mentions" in user
+    assert "- Reduce Python mentions" in user
+
+
+def test_build_generation_user_without_optional_sections():
+    """No target_title default → uses JD title; no emphasis/repair → those sections absent."""
+    user = build_generation_user(_PROBE_STRUCTURE, JD, _PROBE_GAP, original_resume_text="Jane Doe")
+    assert "candidate_emphasis_request" not in user
+    assert "repair_instructions" not in user
+
+
+# ---------------------------------------------------------------------------
+# generate_aligned_content — token-budget selection (gateway vs direct)
+# ---------------------------------------------------------------------------
+def test_generate_aligned_content_gateway_budget(monkeypatch):
+    """On a gateway, max_tokens = GATEWAY_START_TOKENS."""
+    monkeypatch.setattr(config, "is_gateway", lambda: True)
+    captured = {}
+
+    def fake_call(model=None, system=None, user=None, output_model=None,
+                  max_tokens=None, on_token=None, thinking=None):
+        captured["max_tokens"] = max_tokens
+        captured["thinking"] = thinking
+        return _content()
+
+    monkeypatch.setattr("tools.generate_content.structured_call", fake_call)
+    generate_aligned_content(_PROBE_STRUCTURE, JD, _PROBE_GAP, original_resume_text="x")
+    assert captured["max_tokens"] == config.GATEWAY_START_TOKENS
+    # Gateway path: thinking is disabled (gateways auto-think).
+    assert captured["thinking"] is False
+
+
+def test_generate_aligned_content_direct_budget(monkeypatch):
+    """On direct API, max_tokens = DIRECT_MAX_TOKENS_GENERATE and thinking=True."""
+    monkeypatch.setattr(config, "is_gateway", lambda: False)
+    captured = {}
+
+    def fake_call(model=None, system=None, user=None, output_model=None,
+                  max_tokens=None, on_token=None, thinking=None):
+        captured["max_tokens"] = max_tokens
+        captured["thinking"] = thinking
+        return _content()
+
+    monkeypatch.setattr("tools.generate_content.structured_call", fake_call)
+    generate_aligned_content(_PROBE_STRUCTURE, JD, _PROBE_GAP, original_resume_text="x")
+    assert captured["max_tokens"] == config.DIRECT_MAX_TOKENS_GENERATE
+    assert captured["thinking"] is True

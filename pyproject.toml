@@ -11,6 +11,7 @@ python_functions = "test_*"
 [tool.coverage.run]
 source = ["tools", "rendering", "config", "graph", "app"]
 branch = true
+omit = ["tests/e2e_live.py", "tests/probe_*.py"]
 
 [tool.coverage.report]
 # The deterministic guardrails (config thresholds, guardrails.py, rendering,
