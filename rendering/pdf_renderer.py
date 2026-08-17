@@ -33,10 +33,10 @@ _NO_BROWSER: str = "__none__"
 _CHANNEL_CACHE: str | None = None
 _BUNDLED_ATTEMPTED = False
 
-# weasyprint import is memoized once (None means "not yet tried"). It's a real
-# system dependency on older cairocffi-based versions (needs libpango/libcairo2
-# via .streamlit/packages.txt on Streamlit Cloud), so we never want to retry a
-# failed import every call.
+# weasyprint import is memoized once (None means "not yet tried"). It shells
+# out to Pango (needs libpango/libpangocairo/libcairo2/libgdk-pixbuf2.0 via
+# packages.txt at the repo root on Streamlit Cloud), so we never want to
+# retry a failed import every call.
 _WEASYPRINT_CACHE: object = None  # module | None | False
 _WEASY_IMPORT_TRIED: bool = False
 

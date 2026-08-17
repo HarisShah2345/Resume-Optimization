@@ -188,7 +188,7 @@ def render_results(state: dict) -> None:
             + "\n\nTo enable PDF downloads, install a Chromium-based browser "
             "(Playwright Chromium/Edge/Chrome) OR the `weasyprint` Python package "
             "in this environment (Streamlit Community Cloud can install weasyprint "
-            "via requirements.txt + system libs via .streamlit/packages.txt), or "
+            "via requirements.txt + system libs via packages.txt at the repo root), or "
             "run the app locally.",
             icon=":material/warning:",
         )
