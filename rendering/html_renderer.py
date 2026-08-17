@@ -14,6 +14,12 @@ No LLM here. Every rendering rule is hard-coded:
     — a real round bullet, fully ATS-clean.
   - Skills section is NOT atomic (rows are); certs/education CAN be.
   - Education: institution+year on one line, degree+location on the next.
+  - Body font stack lists "Liberation Sans" explicitly (not just a bare
+    "sans-serif" generic) so the weasyprint/Pango PDF backend substitutes a
+    real, metric-compatible Arial clone on environments without Arial itself
+    (e.g. Streamlit Community Cloud) — Pango's generic-family fallback picks
+    whatever default sans font a container happens to have, which produced a
+    visibly worse, less professional PDF than the Playwright/Chromium path.
 """
 from __future__ import annotations
 
@@ -44,7 +50,7 @@ DEFAULT_TITLES: dict[str, str] = {
 FALLBACK_ORDER: list[str] = ["summary", "experience", "skills", "certifications", "education"]
 
 CSS = """
-body{font-family:Arial,sans-serif;font-size:9.5pt;color:#000;margin:0;padding:0;line-height:1.25}
+body{font-family:Arial,"Liberation Sans",sans-serif;font-size:9.5pt;color:#000;margin:0;padding:0;line-height:1.25}
 .header-wrap{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px}
 .header-name{font-size:20pt;font-weight:bold}
 .header-title{font-size:9.5pt;font-style:italic;margin:2px 0 0 0}
