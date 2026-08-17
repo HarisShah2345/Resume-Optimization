@@ -1,10 +1,4 @@
-# System libraries for weasyprint (Streamlit Community Cloud).
-# Streamlit Community Cloud only reads packages.txt from the repo root —
-# a copy under .streamlit/ is silently ignored, which is why weasyprint
-# failed to import even after being added to requirements.txt.
-# weasyprint still shells out to Pango for text shaping/layout even on
-# its modern pydyf PDF backend, so these are required, not optional.
 libpango-1.0-0
 libpangocairo-1.0-0
 libcairo2
-libgdk-pixbuf2.0-0
+libgdk-pixbuf-2.0-0
