@@ -44,6 +44,7 @@ import time
 from typing import Callable, Type, TypeVar
 
 import anthropic
+import httpx
 from pydantic import BaseModel, ValidationError
 
 import config
@@ -56,11 +57,18 @@ _TOOL_NAME = "structured_output"
 
 # Transient failures worth a retry with backoff — gateways sit behind pool
 # schedulers that throw 5xx / connection drops when a combo route is exhausted.
+# httpx.TransportError (ConnectError/ReadError/RemoteProtocolError, wrapping OS
+# errors like "[Errno 104] Connection reset by peer") is included separately
+# from anthropic.APIConnectionError: the SDK only wraps errors raised while
+# *establishing* a request, not ones raised mid-stream while iterating SSE
+# chunks (`Stream.__stream__` has no try/except around that loop) — verified
+# live on Streamlit Cloud, whose egress drops connections mid-response.
 _RETRYABLE = (
     anthropic.InternalServerError,
     anthropic.RateLimitError,
     anthropic.APIConnectionError,
     anthropic.APITimeoutError,
+    httpx.TransportError,
 )
 _MAX_ATTEMPTS = 3
 # Wall-clock deadline per attempt. A gateway stream can stall indefinitely

@@ -360,6 +360,27 @@ def test_transient_failure_is_retried_and_streams_only_success(monkeypatch):
     assert "".join(seen) == '{"name": "Jane", "count": 3}'
 
 
+def test_mid_stream_connection_reset_is_retried(monkeypatch):
+    """A raw httpx transport error (e.g. ECONNRESET mid-stream, which the SDK
+    does not wrap as anthropic.APIConnectionError because it happens while
+    iterating SSE chunks rather than establishing the request — verified live
+    on Streamlit Cloud) must be retried like any other transient failure."""
+    _gateway(monkeypatch)
+    monkeypatch.setattr("tools.llm.time.sleep", lambda _s: None)
+    payload = {"name": "Jane", "count": 3}
+    fake = FakeMessages(
+        [
+            httpx.ReadError("[Errno 104] Connection reset by peer"),
+            FakeStream(_final([_tool_use_block(payload)]), []),
+        ]
+    )
+    with _fake_client(fake):
+        result = structured_call("free-bundle", "sys", "user", Sample, 16000)
+
+    assert result == Sample(name="Jane", count=3)
+    assert fake.stream_count == 2
+
+
 def test_wall_clock_timeout_retries_then_raises(monkeypatch):
     """A stream that hangs (no delta, no error) must not block the agent
     forever: the per-attempt deadline fails the attempt and, after all retries
